@@ -14,7 +14,9 @@ class Board:
         }
 
         self.halfmove_clock = 0
-        self.move = 1
+        self.move_number = 1
+        self.en_passant = None
+        self.move_history = []
 
     def set_up_initial_position(self): 
 
@@ -36,7 +38,6 @@ class Board:
             5 : 'Q', -5 : 'q',
             6 : 'K', -6 : 'k'
         }
-
         for row in self.board:
             print(' '.join(piece_markings[piece] for piece in row))
         print("\n")
@@ -79,5 +80,46 @@ class Board:
 
         self.move = int(parts[5])
 
-        
+    def make_move(self,move):
+        #Store the move and the pieces involed for undoing later
+        piece = self.board[move.start_row][move.start_column]
+        captured_piece = self.board[move.end_row][move.end_column]
 
+        #saving move for undoing later
+        self.move_history.append((move, piece, captured_piece, self.castling_rights.copy(), self.en_passant, self.halfmove_clock, self.move_number))
+
+        #Making the Move
+        self.board[move.end_row][move.end_column] = piece
+        self.board[move.start_row][move.start_column] = 0
+        
+        #Changing the side to move
+        self.side_to_move *= -1
+        
+        #no draw rule and move number handling
+        if piece == 1 or piece == -1 or captured_piece != 0:
+            self.halfmove_clock = 0
+        else: 
+            self.halfmove_clock += 1
+        
+        #updating move  numnber
+        if self.side_to_move == 1:
+            self.move_number += 1
+    
+    def undo_move(self):
+        if not self.move_history:
+            return
+        
+        move, piece, captured_piece, castling_rights, en_passant, halfmove_clock, move_number = self.move_history.pop()
+
+        #undo the move
+        self.board[move.start_row][move.start_column] = piece
+        self.board[move.end_row][move.end_column] = captured_piece
+
+        #restore the state
+        self.castling_rights = castling_rights
+        self.en_passant = en_passant
+        self.halfmove_clock = halfmove_clock
+        self.move_number = move_number
+
+        #change the side to move back
+        self.side_to_move *= -1
