@@ -5,6 +5,8 @@ class Move:
         self.end_row = end_row
         self.end_column = end_column
         self.promotion = promotion
+
+        self.score = 0
     
     def __repr__(self):
         return f"({self.start_row},{self.start_column}) -> ({self.end_row},{self.end_column})"

@@ -1,5 +1,6 @@
 
 from email import generator
+from engine.zobrist import Zobrist
 
 import numpy as np
 
@@ -21,6 +22,9 @@ class Board:
         self.move_number = 1
         self.en_passant = None
         self.move_history = []
+
+        self.zobrist = Zobrist()
+        self.hash = 0;
 
     def set_up_initial_position(self): 
 
@@ -83,6 +87,7 @@ class Board:
         self.halfmove_clock = int(parts[4])
 
         self.move = int(parts[5])
+        self.hash = self.compute_hash()
 
     def make_move(self,move):
         #Store the move and the pieces involed for undoing later
@@ -90,7 +95,32 @@ class Board:
         captured_piece = self.board[move.end_row][move.end_column]
 
         #saving move for undoing later
-        self.move_history.append((move, piece, captured_piece, self.castling_rights.copy(), self.en_passant, self.halfmove_clock, self.move_number))
+        self.move_history.append((
+            move, piece, captured_piece,
+            self.castling_rights.copy(),
+            self.en_passant,
+            self.halfmove_clock,
+            self.move_number,
+            self.hash))
+        
+        self.hash ^= self.zobrist.side_key
+
+         # Remove moving piece from start square
+        piece_index = (abs(piece) - 1) + (0 if piece > 0 else 6)
+        start_square = move.start_row * 8 + move.start_column
+        self.hash ^= self.zobrist.piece_keys[piece_index][start_square]
+
+        #If capture, remove captured piece
+        if captured_piece != 0:
+            captured_index = (abs(captured_piece) - 1) + (0 if captured_piece > 0 else 6)
+            end_square = move.end_row * 8 + move.end_column
+            self.hash ^= self.zobrist.piece_keys[captured_index][end_square]
+
+        #Add moving piece to end square
+        piece_index = (abs(piece) - 1) + (0 if piece > 0 else 6)
+        end_square = move.end_row * 8 + move.end_column
+        self.hash ^= self.zobrist.piece_keys[piece_index][end_square]
+        
 
         #Making the Move
         self.board[move.end_row][move.end_column] = piece
@@ -113,7 +143,10 @@ class Board:
         if not self.move_history:
             return
         
-        move, piece, captured_piece, castling_rights, en_passant, halfmove_clock, move_number = self.move_history.pop()
+        (move,piece,captured_piece,
+        castling_rights, en_passant,
+        halfmove_clock, move_number,
+        previous_hash) = self.move_history.pop()
 
         #undo the move
         self.board[move.start_row][move.start_column] = piece
@@ -124,6 +157,7 @@ class Board:
         self.en_passant = en_passant
         self.halfmove_clock = halfmove_clock
         self.move_number = move_number
+        self.hash = previous_hash
 
         #change the side to move back
         self.side_to_move *= -1
@@ -159,3 +193,27 @@ class Board:
                 return True
 
         return False
+    
+    def compute_hash(self):
+        h = 0
+
+        for r in range(8):
+            for c in range(8):
+                piece = self.board[r][c]
+                if piece != 0:
+                 piece_index = (abs(piece) - 1) + (0 if piece > 0 else 6)
+                 square = r * 8 + c
+                 h ^= self.zobrist.piece_keys[piece_index][square]
+
+        if self.side_to_move == -1:
+            h ^= self.zobrist.side_key
+
+        for key, value in self.castling_rights.items():
+            if value:
+             h ^= self.zobrist.castling_keys[key]
+
+        if self.en_passant:
+            file = self.en_passant[1]
+            h ^= self.zobrist.en_passant_keys[file]
+
+        return h
