@@ -14,7 +14,7 @@ print(moves)
 
 search = Search(board, generator, evaluator)
 
-best_move, score = search.find_best_move(2)
+best_move, score = search.find_best_move(5)
 board.make_move(best_move)
 board.print_board()
 
