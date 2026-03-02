@@ -45,7 +45,7 @@ class Search:
         self.board.make_move(move)
         if self.board.is_in_check(-self.board.side_to_move):
             self.board.undo_move()
-            return 5000
+            return 50
         self.board.undo_move()
 
         return 0
@@ -60,7 +60,7 @@ class Search:
                 return float(entry["value"])
            
         if depth == 0:
-            return self.quiescence(alpha, beta)
+            return self.evaluator.evaluate(self.board)
 
         moves = self.generator.generate_legal_moves()
 
@@ -102,6 +102,7 @@ class Search:
                 child_value = self.alphabeta(depth - 1, alpha, beta, True)
                 self.board.undo_move()
 
+
                 value = min(value, child_value)
                 beta = min(beta, value)
 
@@ -139,7 +140,8 @@ class Search:
             eval_score = self.alphabeta(depth - 1, alpha, beta, not maximizing_player)
             self.board.undo_move()
 
-            print(f"Move: {move}, Eval: {eval_score}")  
+            print(f"Move: {move}, Eval: {eval_score}")
+
 
             if maximizing_player:
                 if eval_score > best_eval:
