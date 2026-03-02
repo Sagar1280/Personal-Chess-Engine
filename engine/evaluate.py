@@ -18,4 +18,6 @@ class Evaluator:
                 if piece != 0:
                     value = self.piece_values[abs(piece)]
                     score += value if piece > 0 else -value
+        
         return score
+    

@@ -39,6 +39,19 @@ class MoveGenerator:
             self.board.undo_move() # undo the move to restore the original position
         return legal_moves
     
+    def generate_capture_moves(self):
+        captures =[]
+
+        for move in self.generate_moves():
+            target_piece = self.board.board[move.end_row][move.end_column]
+            if target_piece != 0:
+                self.board.make_move(move) # make the move on the board
+                if not self.board.is_in_check(-self.board.side_to_move): 
+                    captures.append(move)
+                self.board.undo_move() # undo the move to restore the original position
+        
+        return captures
+                           
     def generate_pawn_moves(self, r, c):
         moves = []
         piece = self.board.board[r][c]

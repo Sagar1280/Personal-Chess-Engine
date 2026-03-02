@@ -5,15 +5,6 @@ class Search:
         self.evaluator = evaluator
         self.tt = {}
         self.tt_hits = 0
-
-    def capture_moves(self):
-        captures = []
-
-        for move in self.generator.generate_legal_moves():
-            target_piece = self.board.board[move.end_row][move.end_column]
-            if target_piece != 0:
-              captures.append(move)
-        return captures
     
     def quiescence(self, alpha, beta) -> float:
         stand_pat = self.evaluator.evaluate(self.board)
@@ -25,7 +16,7 @@ class Search:
             alpha = stand_pat
 
         # Only explore captures
-        captures = self.capture_moves()
+        captures = self.generator.generate_capture_moves()
 
         # Order captures (good captures first)
         for move in captures:
@@ -49,7 +40,13 @@ class Search:
         moving_piece = self.board.board[move.start_row][move.start_column]
 
         if target_piece != 0:
-            return 10 * abs(target_piece) - abs(moving_piece)
+            return 10000 + 10 * abs(target_piece) - abs(moving_piece)
+        
+        self.board.make_move(move)
+        if self.board.is_in_check(-self.board.side_to_move):
+            self.board.undo_move()
+            return 5000
+        self.board.undo_move()
 
         return 0
 
@@ -70,9 +67,12 @@ class Search:
         # Checkmate / stalemate
         if not moves:
             if self.board.is_in_check(self.board.side_to_move):
-                return -999999 if maximizing_player else 999999
+                if maximizing_player:
+                    return float('-inf')  # Checkmate for maximizing player
+                else:        
+                   return float('inf')   # Checkmate for minimizing player  
             else:
-                return 0
+                return 0  # Stalemate
 
         # ORDER MOVES BEFORE SEARCH
         for move in moves:
@@ -109,16 +109,19 @@ class Search:
                     break  # pruning
 
             # STORE IN TRANSPOSITION TABLE
-            self.tt[self.board.hash] = {
+        self.tt[self.board.hash] = {
                 "value": value, 
                 "depth": depth
                 }
-
         return value
 
     def find_best_move(self, depth):
         best_move = None
-        best_eval = float('-inf')
+        maximizing_player = self.board.side_to_move == 1
+        if maximizing_player:
+          best_eval = float('-inf')
+        else:
+          best_eval = float('inf')
 
         alpha = float('-inf')
         beta = float('inf')
@@ -133,13 +136,20 @@ class Search:
 
         for move in moves:
             self.board.make_move(move)
-            eval_score = self.alphabeta(depth - 1, alpha, beta, False)
+            eval_score = self.alphabeta(depth - 1, alpha, beta, not maximizing_player)
             self.board.undo_move()
 
-            if eval_score > best_eval:
-                best_eval = eval_score
-                best_move = move
+            print(f"Move: {move}, Eval: {eval_score}")  
 
-            alpha = max(alpha, best_eval)
+            if maximizing_player:
+                if eval_score > best_eval:
+                   best_eval = eval_score
+                   best_move = move
+                alpha = max(alpha, eval_score)
+            else:
+                if eval_score < best_eval:
+                    best_eval = eval_score
+                    best_move = move
+                beta = min(beta, eval_score)
 
         return best_move, best_eval
