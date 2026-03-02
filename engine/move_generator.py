@@ -29,7 +29,16 @@ class MoveGenerator:
                         moves.extend(self.generate_king_moves(r, c))
                         moves.extend(self.generate_castling_moves(r, c))
         return moves
-
+    
+    def generate_legal_moves(self):
+        legal_moves = []
+        for move in self.generate_moves():
+            self.board.make_move(move) # make the move on the board
+            if not self.board.is_in_check(-self.board.side_to_move): #check if the move leavess the king in check 
+                legal_moves.append(move)
+            self.board.undo_move() # undo the move to restore the original position
+        return legal_moves
+    
     def generate_pawn_moves(self, r, c):
         moves = []
         piece = self.board.board[r][c]

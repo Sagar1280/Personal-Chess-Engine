@@ -1,5 +1,9 @@
 
+from email import generator
+
 import numpy as np
+
+from engine.move_generator import MoveGenerator
 
 class Board:
     def __init__(self):
@@ -123,3 +127,35 @@ class Board:
 
         #change the side to move back
         self.side_to_move *= -1
+
+    def find_king(self,color):
+        king_value = 6 * color
+        for r in range(8):
+            for c in range(8):
+                if self.board[r][c] == king_value:
+                    return (r,c)
+        return None
+    
+    def is_in_check(self,color):
+        king_pos = self.find_king(color)
+        
+        if not king_pos:
+            return False
+
+        king_r, king_c = king_pos
+
+        # Temporarily switch side to generate opponent moves
+        original_side = self.side_to_move
+        self.side_to_move = -color
+
+        from engine.move_generator import MoveGenerator
+        generator = MoveGenerator(self)
+        opponent_moves = generator.generate_moves()
+
+        self.side_to_move = original_side
+
+        for move in opponent_moves:
+            if move.end_row == king_r and move.end_column == king_c:
+                return True
+
+        return False
