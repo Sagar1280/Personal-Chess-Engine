@@ -93,7 +93,7 @@ class Evaluator:
         for r in range(8):
             for c in range(8):
                 piece = board.board[r][c]
-                if piece != 0:
+                if piece != 0 and abs(piece) != 6:  # Exclude kings from material count
                     total_material += self.piece_values[abs(piece)]
 
         return total_material < 1500  # Threshold for endgame
@@ -101,14 +101,66 @@ class Evaluator:
     def evaluate(self,board):
         score = 0
         endgame = self.is_endgame(board)
-        
+
         for r in range(8):
             for c in range(8):
                 piece = board.board[r][c]
 
-                if piece != 0:
-                    value = self.piece_values[abs(piece)]
-                    score += value if piece > 0 else -value
+                if piece == 0:
+                    continue
+
+                abs_piece = abs(piece)
+                value = self.piece_values[abs_piece]
+
+                if piece > 0:
+                    score += value
+                else:
+                    score -= value 
+
+                if abs_piece == 1:  # Pawn
+                    if piece > 0:
+                        score += self.pawn_table[r][c]
+                    else:
+                        score -= self.pawn_table[7-r][c]
+
+                elif abs_piece == 2:  # Knight
+                    if piece > 0:
+                        score += self.knight_table[r][c]
+                    else:
+                        score -= self.knight_table[7-r][c]
+
+                elif abs_piece == 3:  # Bishop  
+                    if piece > 0:
+                        score += self.bishop_table[r][c]
+                    else:
+                        score -= self.bishop_table[7-r][c]
+
+                elif abs_piece == 4:  # Rook
+                    if piece > 0:
+                        score += self.rook_table[r][c]
+                    else:
+                        score -= self.rook_table[7-r][c]
+
+                elif abs_piece == 5:  # Queen
+                    if piece > 0:
+                        score += self.queen_table[r][c]
+                    else:
+                        score -= self.queen_table[7-r][c]
+
+                elif abs_piece == 6:  # King    
+                    if endgame:
+                        if piece > 0:
+                            score += self.king_end_table[r][c]
+                        else:
+                            score -= self.king_end_table[7-r][c]
+                    else:
+                        if piece > 0:
+                            score += self.king_middle_table[r][c]
+                        else:
+                            score -= self.king_middle_table[7-r][c] 
+        
+        if board.side_to_move == -1:
+            score = -score
         
         return score
     
