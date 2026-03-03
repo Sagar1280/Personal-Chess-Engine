@@ -5,6 +5,10 @@ class Search:
         self.evaluator = evaluator
         self.tt = {}
         self.tt_hits = 0
+
+        self.Exact = 0
+        self.LowerBound = 1
+        self.UpperBound = 2
     
     def quiescence(self, alpha, beta) -> float:
         stand_pat = self.evaluator.evaluate(self.board)
@@ -51,13 +55,24 @@ class Search:
         return 0
 
     def alphabeta(self, depth, alpha, beta, maximizing_player) -> float:
+        alpha_original = alpha
+        beta_original = beta    
 
         #TRANSPOSITION TABLE LOOKUP
         if self.board.hash in self.tt:
             entry = self.tt[self.board.hash]
             if entry["depth"] >= depth:
                 self.tt_hits += 1
-                return float(entry["value"])
+                if entry["flag"] == self.Exact:
+                    return entry["value"]
+                
+                elif entry["flag"] == self.LowerBound:
+                    alpha = max(alpha, entry["value"])
+
+                elif entry["flag"] == self.UpperBound:
+                    beta = min(beta, entry["value"])
+                if alpha >= beta:
+                    return entry["value"]
            
         if depth == 0:
             return self.evaluator.evaluate(self.board)
@@ -109,16 +124,26 @@ class Search:
                 if beta <= alpha:
                     break  # pruning
 
-            # STORE IN TRANSPOSITION TABLE
+        # TRANSPOSITION TABLE STORE
+        if value <= alpha_original:
+            flag = self.UpperBound  
+        elif value >= beta:
+            flag = self.LowerBound
+        else:
+            flag = self.Exact
+
         self.tt[self.board.hash] = {
                 "value": value, 
-                "depth": depth
+                "depth": depth,
+                "flag" : flag,
                 }
         return value
 
     def find_best_move(self, depth):
+
         best_move = None
         maximizing_player = self.board.side_to_move == 1
+
         if maximizing_player:
           best_eval = float('-inf')
         else:
@@ -140,7 +165,6 @@ class Search:
             eval_score = self.alphabeta(depth - 1, alpha, beta, not maximizing_player)
             self.board.undo_move()
 
-            print(f"Move: {move}, Eval: {eval_score}")
 
 
             if maximizing_player:
