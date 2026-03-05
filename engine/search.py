@@ -154,8 +154,6 @@ class Search:
             eval_score = -self.negamax(depth - 1, -beta, -alpha)
             self.board.undo_move()
 
-            print(f"Move: {move}, Eval: {eval_score}")
-
             if eval_score > best_value:
                 best_value = eval_score
                 best_move = move
