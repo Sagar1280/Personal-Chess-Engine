@@ -194,7 +194,7 @@ class Board:
 
         return False
     
-    def compute_hash(self):
+    def compute_hash(self): 
         h = 0
 
         for r in range(8):
@@ -217,3 +217,74 @@ class Board:
             h ^= self.zobrist.en_passant_keys[file]
 
         return h
+    
+    def is_checkmate(self):
+        if not self.is_in_check(self.side_to_move):
+            return False
+        
+        generator = MoveGenerator(self)
+        legal_moves = generator.generate_legal_moves()
+
+        return len(legal_moves) == 0
+    
+    def is_stalemate(self):
+        if self.is_in_check(self.side_to_move):
+            return False
+        
+        generator = MoveGenerator(self)
+        legal_moves = generator.generate_legal_moves()
+
+        return len(legal_moves) == 0
+    
+    def is_check(self):
+        return self.is_in_check(self.side_to_move)
+    
+    def get_fen(self):
+        fen = ""
+        for r in range(8):
+            empty_count = 0
+            for c in range(8):
+                piece = self.board[r][c]
+                if piece == 0:
+                    empty_count += 1
+                else:
+                    if empty_count > 0:
+                        fen += str(empty_count)
+                        empty_count = 0
+                    piece_map = {
+                        1 : 'P', -1 : 'p',
+                        2 : 'N', -2 : 'n',
+                        3 : 'B', -3 : 'b',
+                        4 : 'R', -4 : 'r',
+                        5 : 'Q', -5 : 'q',
+                        6 : 'K', -6 : 'k'
+                    }
+                    fen += piece_map[piece]
+            if empty_count > 0:
+                fen += str(empty_count)
+            if r < 7:
+                fen += "/"
+
+        fen += " " + ("w" if self.side_to_move == 1 else "b")
+
+        castling = ""
+        if self.castling_rights['white_kingside']:
+            castling += "K"
+        if self.castling_rights['white_queenside']:
+            castling += "Q"
+        if self.castling_rights['black_kingside']:
+            castling += "k"
+        if self.castling_rights['black_queenside']:
+            castling += "q"
+        fen += " " + (castling if castling else "-")
+
+        if self.en_passant:
+            file = chr(self.en_passant[1] + ord('a'))
+            rank = str(8 - self.en_passant[0])
+            fen += f" {file}{rank}"
+        else:
+            fen += " -"
+
+        fen += f" {self.halfmove_clock} {self.move_number}"
+
+        return fen
