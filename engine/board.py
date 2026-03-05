@@ -239,7 +239,7 @@ class Board:
     def is_check(self):
         return self.is_in_check(self.side_to_move)
     
-    def get_fen(self):
+    def get_fen(self): 
         fen = ""
         for r in range(8):
             empty_count = 0
