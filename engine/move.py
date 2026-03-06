@@ -4,7 +4,8 @@ class Move:
         self.start_column = start_column
         self.end_row = end_row
         self.end_column = end_column
-        self.promotion = promotion
+
+        self.promotion = promotion 
 
         self.score = 0
     

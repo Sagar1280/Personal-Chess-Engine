@@ -8,7 +8,8 @@ from engine.move_generator import MoveGenerator
 
 class Board:
     def __init__(self):
-        self.board = [[0 for _ in range(8)] for _ in range(8)] #create an 8x8 board filled with zeros
+        
+        self.board = [[0 for _ in range(8)] for _ in range(8)] #create an 8x8 board filled with .
         self.side_to_move = 1 #1 for white, -1 for black
 
         self.castling_rights = {
@@ -19,6 +20,7 @@ class Board:
         }
 
         self.halfmove_clock = 0
+
         self.move_number = 1
         self.en_passant = None
         self.move_history = []
@@ -46,6 +48,7 @@ class Board:
             5 : 'Q', -5 : 'q',
             6 : 'K', -6 : 'k'
         }
+
         for row in self.board:
             print(' '.join(piece_markings[piece] for piece in row))
         print("\n")
@@ -54,6 +57,7 @@ class Board:
     def load_board(self, fen):
 
         parts = fen.split()
+        
         rows = parts[0].split("/")
         for r in range(8):
             file = 0
@@ -71,7 +75,7 @@ class Board:
         self.side_to_move = 1 if parts[1] == 'w' else -1
 
         self.castling_rights = {
-            'white_kingside' : 'K' in parts[2],
+            'white_kingside' : 'K' in parts[2], 
             'white_queenside' : 'Q' in parts[2],   
             'black_kingside' : 'k' in parts[2],
             'black_queenside' : 'q' in parts[2]
@@ -90,6 +94,7 @@ class Board:
         self.hash = self.compute_hash()
 
     def make_move(self,move):
+        
         #Store the move and the pieces involed for undoing later
         piece = self.board[move.start_row][move.start_column]
         captured_piece = self.board[move.end_row][move.end_column]
@@ -126,8 +131,55 @@ class Board:
         self.board[move.end_row][move.end_column] = piece
         self.board[move.start_row][move.start_column] = 0
         
+        if abs(piece) == 6:
+            if piece > 0 :
+                self.castling_rights["white_kingside"] = False
+                self.castling_rights["white_queenside"] = False
+            if piece < 0:
+                self.castling_rights["black_kingside"] = False
+                self.castling_rights["black_queenside"] = False
+        
+        if abs(piece) == 4:
+            if piece > 0 and move.start_row ==7 and move.start_column == 7:
+                self.castling_rights["white_kingside"]= False
+            if piece > 0  and move.start_row == 7 and move.start_column == 0:
+                self.castling_rights['white_queenside'] = False
+            if piece < 0 and move.start_row ==0 and move.start_column == 7:
+                self.castling_rights["black_kingside"]= False
+            if piece < 0 and move.start_row == 0 and move.start_column == 0:
+                self.castling_rights['black_queenside'] = False
+
+        if captured_piece == 4:
+            if move.end_row == 7 and move.end_column == 0:
+                self.castling_rights["white_queenside"] = False
+            if move.end_row == 7 and move.end_column == 7:
+                self.castling_rights["white_kingside"] = False
+
+        if captured_piece == -4:
+            if move.end_row == 0 and move.end_column == 0:
+                self.castling_rights["black_queenside"] = False
+            if move.end_row == 0 and move.end_column == 7:
+                self.castling_rights["black_kingside"] = False
+        
+        if piece == 6 and move.start_column == 4 and move.end_column == 6:
+            self.board[7][5] = self.board[7][7]
+            self.board[7][7] = 0
+        if piece == 6 and move.start_column == 4 and move.end_column == 2:
+            self.board[7][3] = self.board[7][0]
+            self.board[7][0] = 0
+        if piece == -6 and move.start_column == 4 and move.end_column == 6:
+            self.board[0][5] = self.board[0][7]
+            self.board[0][7] = 0
+        if piece == -6 and move.start_column == 4 and move.end_column == 2:
+            self.board[0][3] = self.board[0][0]
+            self.board[0][0] = 0
+        
+
+                
+
+        
         #Changing the side to move
-        self.side_to_move *= -1
+        self.side_to_move *= -1  
         
         #no draw rule and move number handling
         if piece == 1 or piece == -1 or captured_piece != 0:
@@ -135,7 +187,7 @@ class Board:
         else: 
             self.halfmove_clock += 1
         
-        #updating move  numnber
+        #updating move numnber 
         if self.side_to_move == 1:
             self.move_number += 1
     
@@ -163,6 +215,7 @@ class Board:
         self.side_to_move *= -1
 
     def find_king(self,color):
+
         king_value = 6 * color
         for r in range(8):
             for c in range(8):
@@ -239,7 +292,8 @@ class Board:
     def is_check(self):
         return self.is_in_check(self.side_to_move)
     
-    def get_fen(self): 
+    def get_fenn(self): 
+
         fen = ""
         for r in range(8):
             empty_count = 0
@@ -265,7 +319,7 @@ class Board:
             if r < 7:
                 fen += "/"
 
-        fen += " " + ("w" if self.side_to_move == 1 else "b")
+        fen += " " + ("w" if self.side_to_move == 1 else "b") #w / b
 
         castling = ""
         if self.castling_rights['white_kingside']:

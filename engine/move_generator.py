@@ -32,6 +32,7 @@ class MoveGenerator:
     
     def generate_legal_moves(self):
         legal_moves = []
+        
         for move in self.generate_moves():
             self.board.make_move(move) # make the move on the board
             if not self.board.is_in_check(-self.board.side_to_move): #check if the move leavess the king in check 
@@ -59,7 +60,7 @@ class MoveGenerator:
 
         # Forward 1
         if 0 <= r + direction < 8:
-            if self.board.board[r + direction][c] == 0:
+            if self.board.board[r + direction][c] == 0: #free square
                 moves.append(Move(r, c, r + direction, c))
                 # Forward 2
                 if (piece > 0 and r == 6) or (piece < 0 and r == 1):
@@ -68,8 +69,9 @@ class MoveGenerator:
         # Captures
         for dc in [-1, 1]:
             if 0 <= c + dc < 8 and 0 <= r + direction < 8:
+
                 target_piece = self.board.board[r + direction][c + dc]
-                if target_piece * self.board.side_to_move < 0:
+                if target_piece * self.board.side_to_move < 0: 
                     moves.append(Move(r, c, r + direction, c + dc))
 
         return moves
@@ -83,6 +85,7 @@ class MoveGenerator:
         ]
 
         for dr, dc in knight_moves:
+
             new_r, new_c = r + dr, c + dc
             if 0 <= new_r < 8 and 0 <= new_c < 8:
                 target_piece = self.board.board[new_r][new_c]
@@ -93,7 +96,9 @@ class MoveGenerator:
     def generate_slide_moves(self,r,c,directions):
         moves = []
         piece = self.board.board[r][c]
+
         for dr, dc in directions:
+
             new_r, new_c = r + dr, c + dc
             while 0 <= new_r < 8 and 0 <= new_c < 8:
                 target_piece = self.board.board[new_r][new_c]
@@ -143,21 +148,22 @@ class MoveGenerator:
         moves = []
         piece = self.board.board[r][c]
 
-        if piece > 0: # White
-            if self.board.castling_rights['white_kingside']:
-                if self.board.board[7][5] == 0 and self.board.board[7][6] == 0:
-                    moves.append(Move(r, c, 7, 6)) # O-O
-            if self.board.castling_rights['white_queenside']:
-                if self.board.board[7][1] == 0 and self.board.board[7][2] == 0 and self.board.board[7][3] == 0:
-                    moves.append(Move(r, c, 7, 2)) # O-O-O
-        else: # Black
-            if self.board.castling_rights['black_kingside']:
-                if self.board.board[0][5] == 0 and self.board.board[0][6] == 0:
-                    moves.append(Move(r, c, 0, 6)) # O-O
-            if self.board.castling_rights['black_queenside']:
-                if self.board.board[0][1] == 0 and self.board.board[0][2] == 0 and self.board.board[0][3] == 0:
-                    moves.append(Move(r, c, 0, 2)) # O-O-O
+        if not self.board.is_in_check():
+
+            if piece > 0: # White
+                if self.board.castling_rights['white_kingside'] :
+                    if self.board.board[7][5] == 0 and self.board.board[7][6] == 0:
+                        moves.append(Move(r, c, 7, 6)) # O-O
+                if self.board.castling_rights['white_queenside']:
+                    if self.board.board[7][1] == 0 and self.board.board[7][2] == 0 and self.board.board[7][3] == 0:
+                        moves.append(Move(r, c, 7, 2)) # O-O-O
+            else: # Black
+                if self.board.castling_rights['black_kingside']:
+                    if self.board.board[0][5] == 0 and self.board.board[0][6] == 0:
+                        moves.append(Move(r, c, 0, 6)) # O-O
+                if self.board.castling_rights['black_queenside']:
+                    if self.board.board[0][1] == 0 and self.board.board[0][2] == 0 and self.board.board[0][3] == 0:
+                        moves.append(Move(r, c, 0, 2)) # O-O-O
 
         return moves
-    
 

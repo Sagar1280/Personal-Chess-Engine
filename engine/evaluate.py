@@ -101,7 +101,6 @@ class Evaluator:
     def evaluate(self,board):
         score = 0
         endgame = self.is_endgame(board)
-
         for r in range(8):
             for c in range(8):
                 piece = board.board[r][c]
@@ -147,7 +146,29 @@ class Evaluator:
                     else:
                         score -= self.queen_table[7-r][c]
 
-                elif abs_piece == 6:  # King    
+                elif abs_piece == 6:  # King
+                    #add bonus to castling before move 15
+                    if piece > 0:
+                        if board.board[7][6] == 6 or board.board[7][2] == 6:
+                            if board.move_number < 15:
+                                score += 50
+                            if board.board[7][4] == 6 and board.move_number > 12:
+                                score += -25
+                    else:
+                        if board.board[0][6] == -6 or board.board[0][2] == -6:
+                            if board.move_number < 15:
+                                score += 50
+                            if board.board[0][4] == -6 and board.move_number > 12:
+                                score += -25
+                
+                    
+                    if piece > 0:
+                        if board.castling_rights["white_kingside"] == False and board.castling_rights["white_queenside"] == False:
+                            score += -10
+                    else:
+                        if board.castling_rights["white_kingside"] == False and board.castling_rights["white_queenside"] == False:
+                            score += -10
+                     
                     if endgame:
                         if piece > 0:
                             score += self.king_end_table[r][c]
