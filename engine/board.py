@@ -93,103 +93,115 @@ class Board:
         self.move = int(parts[5])
         self.hash = self.compute_hash()
 
-    def make_move(self,move):
-        
-        #Store the move and the pieces involed for undoing later
+    def make_move(self, move):  
+      # Store move info for undo
         piece = self.board[move.start_row][move.start_column]
         captured_piece = self.board[move.end_row][move.end_column]
 
-        #saving move for undoing later
         self.move_history.append((
             move, piece, captured_piece,
             self.castling_rights.copy(),
             self.en_passant,
             self.halfmove_clock,
             self.move_number,
-            self.hash))
-        
+            self.hash
+        ))
+
+        # Toggle side to move in hash
         self.hash ^= self.zobrist.side_key
 
-         # Remove moving piece from start square
+        # Remove moving piece from start square
         piece_index = (abs(piece) - 1) + (0 if piece > 0 else 6)
         start_square = move.start_row * 8 + move.start_column
         self.hash ^= self.zobrist.piece_keys[piece_index][start_square]
 
-        #If capture, remove captured piece
+        # Remove captured piece
         if captured_piece != 0:
             captured_index = (abs(captured_piece) - 1) + (0 if captured_piece > 0 else 6)
             end_square = move.end_row * 8 + move.end_column
             self.hash ^= self.zobrist.piece_keys[captured_index][end_square]
 
-        #Add moving piece to end square
-        piece_index = (abs(piece) - 1) + (0 if piece > 0 else 6)
+        # Add moving piece to end square
         end_square = move.end_row * 8 + move.end_column
         self.hash ^= self.zobrist.piece_keys[piece_index][end_square]
-        
 
-        #Making the Move
+        # Make the move
         self.board[move.end_row][move.end_column] = piece
         self.board[move.start_row][move.start_column] = 0
-        
-        if abs(piece) == 6:
-            if piece > 0 :
-                self.castling_rights["white_kingside"] = False
-                self.castling_rights["white_queenside"] = False
-            if piece < 0:
-                self.castling_rights["black_kingside"] = False
-                self.castling_rights["black_queenside"] = False
-        
-        if abs(piece) == 4:
-            if piece > 0 and move.start_row ==7 and move.start_column == 7:
-                self.castling_rights["white_kingside"]= False
-            if piece > 0  and move.start_row == 7 and move.start_column == 0:
-                self.castling_rights['white_queenside'] = False
-            if piece < 0 and move.start_row ==0 and move.start_column == 7:
-                self.castling_rights["black_kingside"]= False
-            if piece < 0 and move.start_row == 0 and move.start_column == 0:
-                self.castling_rights['black_queenside'] = False
 
+        #   KING MOVED → remove castling rights
+        if abs(piece) == 6:
+            if piece > 0:
+                self.remove_castling_right("white_kingside")
+                self.remove_castling_right("white_queenside")
+            else:
+                self.remove_castling_right("black_kingside")
+                self.remove_castling_right("black_queenside")
+
+        # ROOK MOVED → remove corresponding castling
+        if abs(piece) == 4:
+            if piece > 0 and move.start_row == 7 and move.start_column == 7:
+                self.remove_castling_right("white_kingside")
+
+            if piece > 0 and move.start_row == 7 and move.start_column == 0:
+                self.remove_castling_right("white_queenside")
+
+            if piece < 0 and move.start_row == 0 and move.start_column == 7:
+                self.remove_castling_right("black_kingside")
+
+            if piece < 0 and move.start_row == 0 and move.start_column == 0:
+                self.remove_castling_right("black_queenside")
+
+        # ROOK CAPTURED → remove castling rights
         if captured_piece == 4:
             if move.end_row == 7 and move.end_column == 0:
-                self.castling_rights["white_queenside"] = False
+                self.remove_castling_right("white_queenside")
+
             if move.end_row == 7 and move.end_column == 7:
-                self.castling_rights["white_kingside"] = False
+                self.remove_castling_right("white_kingside")
 
         if captured_piece == -4:
             if move.end_row == 0 and move.end_column == 0:
-                self.castling_rights["black_queenside"] = False
+                self.remove_castling_right("black_queenside")
+
             if move.end_row == 0 and move.end_column == 7:
-                self.castling_rights["black_kingside"] = False
-        
-        if piece == 6 and move.start_column == 4 and move.end_column == 6:
+                self.remove_castling_right("black_kingside")
+
+        # CASTLING MOVE → move rook
+        if self.board[move.end_row][move.end_column] == 6 and move.start_row == 7  and move.start_column == 4 and move.end_row == 7 and move.end_column == 6:
             self.board[7][5] = self.board[7][7]
             self.board[7][7] = 0
-        if piece == 6 and move.start_column == 4 and move.end_column == 2:
+
+        if self.board[move.end_row][move.end_column] == 6 and move.start_row == 7 and move.start_column == 4 and move.end_row == 7 and move.end_column == 2:
             self.board[7][3] = self.board[7][0]
             self.board[7][0] = 0
-        if piece == -6 and move.start_column == 4 and move.end_column == 6:
+
+        if self.board[move.end_row][move.end_column] == -6 and move.start_row == 0 and move.start_column == 4 and move.end_row == 0 and move.end_column == 6:
             self.board[0][5] = self.board[0][7]
             self.board[0][7] = 0
-        if piece == -6 and move.start_column == 4 and move.end_column == 2:
+
+        if self.board[move.end_row][move.end_column] == -6 and  move.start_row == 0 and move.start_column == 4 and move.end_row == 0 and move.end_column == 2:
             self.board[0][3] = self.board[0][0]
             self.board[0][0] = 0
-        
 
-                
+         # Change side to move
+        self.side_to_move *= -1
 
-        
-        #Changing the side to move
-        self.side_to_move *= -1  
-        
-        #no draw rule and move number handling
-        if piece == 1 or piece == -1 or captured_piece != 0:
+        # 50 move rule
+        if abs(piece) == 1 or captured_piece != 0:
             self.halfmove_clock = 0
-        else: 
+        else:
             self.halfmove_clock += 1
-        
-        #updating move numnber 
+
+        # Move number update
         if self.side_to_move == 1:
             self.move_number += 1
+    
+    def remove_castling_right(self,right):
+        if self.castling_rights[right]:
+            self.hash ^= self.zobrist.castling_keys[right]
+            self.castling_rights[right]= False
+
     
     def undo_move(self):
         if not self.move_history:
@@ -203,6 +215,19 @@ class Board:
         #undo the move
         self.board[move.start_row][move.start_column] = piece
         self.board[move.end_row][move.end_column] = captured_piece
+
+        #undo castling
+        if abs(piece) == 6 and abs(move.start_column - move.end_column) == 2:
+
+            row = move.start_row
+
+            if move.end_column == 6:
+                self.board[row][7] = self.board[row][5]
+                self.board[row][5] = 0
+            elif move.end_column == 2:
+                self.board[row][0] = self.board[row][3]
+                self.board[row][3] = 0
+
 
         #restore the state
         self.castling_rights = castling_rights
@@ -237,7 +262,7 @@ class Board:
 
         from engine.move_generator import MoveGenerator
         generator = MoveGenerator(self)
-        opponent_moves = generator.generate_moves()
+        opponent_moves = generator.generate_moves(include_castling = False)
 
         self.side_to_move = original_side
 

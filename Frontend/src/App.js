@@ -115,6 +115,51 @@ function App() {
     setMessage("");
   };
 
+  const loadGame = async (fenString) => {
+    if (!fenString.trim()) {
+      setMessage("Please enter a valid FEN string");
+      return;
+    }
+
+    try {
+      // Validate FEN by creating a Chess instance
+      const loadedGame = new Chess(fenString);
+      
+      if (!loadedGame.fen()) {
+        setMessage("Invalid FEN string");
+        return;
+      }
+
+      // Send to backend
+      const response = await fetch("http://localhost:5000/api/load_fen", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fen: fenString }),
+      });
+
+      if (!response.ok) {
+        setMessage("Failed to load game from server");
+        return;
+      }
+
+      const data = await response.json();
+      
+      // Set the game state with loaded FEN
+      setGame(loadedGame);
+      setFen(fenString);
+      setPlayerColor("white");  // Set default player color
+      setGameStarted(true);
+      setGameOver(false);
+      setBoardHighlight("");
+      setMessage("Game loaded successfully!");
+      
+    } catch (error) {
+      setMessage(`Invalid FEN: ${error.message}`);
+    }
+  };
+
   const makeEngineMove = async () => {
     setEngineThinking(true);
     try {
@@ -279,9 +324,11 @@ function App() {
                   />
                 </div>
 
-                <button className="load-btn" onClick={() => {
-                  // Logic for loading game will be added later
-                  console.log("Loading game with FEN:", fenInput);
+                <button 
+                  className="load-btn"  
+                  onClick={() => {
+                  
+                  loadGame(fenInput)
                   setShowLoadModal(false);
                 }}>
                   Load Game
@@ -305,7 +352,7 @@ function App() {
       <div className="game-area">
         <div className={`app-container ${boardHighlight}`}>
           <div className="game-info">
-            <span className="player-info">You: {playerColor.toUpperCase()}</span>
+            <span className="player-info">You: {playerColor ? playerColor.toUpperCase() : "WHITE"}</span>
             <span className="turn-info">{game && !gameOver ? `${game.turn() === "w" ? "White" : "Black"} to move` : ""}</span>
             {engineThinking && <span className="thinking-info">Engine thinking...</span>}
           </div>

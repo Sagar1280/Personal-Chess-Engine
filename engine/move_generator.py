@@ -4,7 +4,7 @@ class MoveGenerator:
     def __init__(self, board):
         self.board = board
 
-    def generate_moves(self):
+    def generate_moves(self, include_castling = True):
         moves = []
 
         for r in range(8):
@@ -27,7 +27,8 @@ class MoveGenerator:
                         moves.extend(self.generate_queen_moves(r, c))
                     elif abs(piece) == 6:
                         moves.extend(self.generate_king_moves(r, c))
-                        moves.extend(self.generate_castling_moves(r, c))
+                        if include_castling:
+                            moves.extend(self.generate_castling_moves(r, c))
         return moves
     
     def generate_legal_moves(self):
@@ -147,9 +148,9 @@ class MoveGenerator:
     def generate_castling_moves(self, r, c):
         moves = []
         piece = self.board.board[r][c]
+        color = 1 if piece > 0 else -1
 
-        if not self.board.is_in_check():
-
+        if not self.board.is_in_check(color):
             if piece > 0: # White
                 if self.board.castling_rights['white_kingside'] :
                     if self.board.board[7][5] == 0 and self.board.board[7][6] == 0:
