@@ -7,6 +7,7 @@ from engine.move_generator import MoveGenerator
 from engine.search import Search
 from engine.evaluate import Evaluator
 from engine.move import Move
+from vision.image_to_fen import detect_board
 import os
 
 app = Flask(__name__, static_folder="frontend/build", static_url_path="/")
@@ -326,6 +327,13 @@ def api_undo():
         "status": get_game_status(),
         "side_to_move": board.side_to_move
     })
+
+@app.route("/api/image_to_fen" , methods = ["POST"])
+def image_to_fen():
+
+    image = request.files["image"]
+    fen = detect_board(image)
+    return jsonify({"fen": fen})
 
 # Serve React frontend
 @app.route("/")

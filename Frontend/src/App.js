@@ -251,6 +251,25 @@ function App() {
     }
   };
 
+  const uploadImage = async () => {
+
+  if (!uploadedImage) return
+
+  const fileInput = document.querySelector('input[type="file"]')
+
+  const formData = new FormData()
+  formData.append("image", fileInput.files[0])
+
+  const response = await fetch("http://localhost:5000/api/image_to_fen", {
+    method: "POST",
+    body: formData
+  })
+
+  const data = await response.json()
+
+  loadGame(data.fen)
+}
+
   const resetGame = () => {
     setGameStarted(false);
     setPlayerColor(null);
@@ -327,8 +346,12 @@ function App() {
                 <button 
                   className="load-btn"  
                   onClick={() => {
-                  
+                  if(uploadedImage){
+                    uploadImage()
+                  }
+                  else{
                   loadGame(fenInput)
+                  }
                   setShowLoadModal(false);
                 }}>
                   Load Game
