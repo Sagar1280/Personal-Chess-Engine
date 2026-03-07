@@ -1,45 +1,29 @@
-# Dependencies
+# Node
+Frontend/node_modules/
 
-node_modules/
+# Python
 .venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
 
-# Production build
-frontend/build/
-dist/
-*.egg-info/
+# Dataset
+vision/Dataset/
 
 # Environment variables
 .env
 .env.local
 .env.*.local
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Build
+Frontend/build/
+dist/
+*.egg-info/
 
 # OS
-Thumbs.db
 .DS_Store
+Thumbs.db
 
-# Testing
-.pytest_cache/
-.coverage
-
-# Node
-npm-debug.log
-.npmrc
+# VSCode
+.vscode/
