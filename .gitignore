@@ -10,6 +10,7 @@ __pycache__/
 
 # Dataset
 vision/Dataset/
+vision/SquareDataset
 
 # Environment variables
 .env
