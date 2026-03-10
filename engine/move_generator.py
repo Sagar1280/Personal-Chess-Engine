@@ -62,7 +62,17 @@ class MoveGenerator:
         # Forward 1
         if 0 <= r + direction < 8:
             if self.board.board[r + direction][c] == 0: #free square
-                moves.append(Move(r, c, r + direction, c))
+                target_row = r + direction
+                if(piece >0 and target_row==0 ) or (piece <0 and target_row ==7):
+                        promotions = [5,4,3,2]
+
+                        for p in promotions:
+                            promo_piece = p if piece >0 else -p
+                            moves.append(Move(r,c,target_row,c,promo_piece))
+                else:
+                        moves.append(Move(r,c,target_row,c))
+
+
                 # Forward 2
                 if (piece > 0 and r == 6) or (piece < 0 and r == 1):
                     if self.board.board[r + 2 * direction][c] == 0:
@@ -73,7 +83,17 @@ class MoveGenerator:
 
                 target_piece = self.board.board[r + direction][c + dc]
                 if target_piece * self.board.side_to_move < 0: 
-                    moves.append(Move(r, c, r + direction, c + dc))
+                    target_row = r + direction
+                    target_col = c + dc
+
+                    if(piece >0 and target_row==0 ) or (piece <0 and target_row ==7):
+                        promotions = [5,4,3,2]
+
+                        for p in promotions:
+                            promo_piece = p if piece >0 else -p
+                            moves.append(Move(r,c,target_row,target_col,promo_piece))
+                    else:
+                        moves.append(Move(r,c,target_row,target_col))
 
         return moves
     

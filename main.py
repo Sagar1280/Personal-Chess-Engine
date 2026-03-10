@@ -72,6 +72,20 @@ def api_move():
     data = request.json
     source = data.get("from")
     target = data.get("to")
+    promotion = data.get("promotion")
+
+    promotion_map = {
+        "q" : 5,
+        "r" : 4,
+        "b" : 3,
+        "n" : 2
+    }
+    promo_value = None
+    if promotion:
+        promo_value = promotion_map.get(promotion.lower())
+        if promo_value and board.side_to_move == -1:
+            promo_value = -promo_value
+
     move_str = source + target
     # Always recreate generator from the current board state
     # (mirrors what api_engine_move already does)
@@ -90,10 +104,18 @@ def api_move():
             move.start_column == start_col and
             move.end_row == end_row and
             move.end_column == end_col):
-            move_obj = move
-            break
+
+            if promo_value is not None:
+                if move.promotion == promo_value:
+                    move_obj = move 
+                    break
+            else:
+                if move.promotion is None:
+                    move_obj = move
+                    break
     if move_obj is None:
         return jsonify({"error": "Illegal move"}), 400
+    
     board.make_move(move_obj)
     move_history.append(move_obj)  # Record move in history
     generator = MoveGenerator(board)

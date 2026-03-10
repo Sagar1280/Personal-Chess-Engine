@@ -135,10 +135,19 @@ class Board:
 
         # Add moving piece to end square
         end_square = move.end_row * 8 + move.end_column
-        self.hash ^= self.zobrist.piece_keys[piece_index][end_square]
+        if move.promotion:
+            promo_piece = move.promotion
+            promo_index = (abs(promo_piece) - 1) + (0 if promo_piece > 0 else 6)
+            self.hash ^= self.zobrist.piece_keys[promo_index][end_square]
+        else:
+            self.hash ^= self.zobrist.piece_keys[piece_index][end_square]
 
         # Make the move
-        self.board[move.end_row][move.end_column] = piece
+        if move.promotion:
+            self.board[move.end_row][move.end_column] = move.promotion
+        else:
+            self.board[move.end_row][move.end_column] = piece
+        
         self.board[move.start_row][move.start_column] = 0
 
         #   KING MOVED → remove castling rights
@@ -181,19 +190,44 @@ class Board:
 
         # CASTLING MOVE → move rook (use pre-computed flags from top of function)
         if is_wk_castle:
-            self.board[7][5] = self.board[7][7]
+            rook = self.board[7][7] 
+            rook_index = (abs(rook) - 1)
+            start_sq = 7 * 8 + 7
+            self.hash ^= self.zobrist.piece_keys[rook_index][start_sq]
+            end_sq = 7 * 8 + 5
+            self.hash ^= self.zobrist.piece_keys[rook_index][end_sq]
+            self.board[7][5] = rook
             self.board[7][7] = 0
+            
 
         if is_wq_castle:
-            self.board[7][3] = self.board[7][0]
+            rook = self.board[7][0] 
+            rook_index = (abs(rook) - 1)
+            start_sq = 7 * 8 + 0
+            self.hash ^= self.zobrist.piece_keys[rook_index][start_sq]
+            end_sq = 7 * 8 + 3
+            self.hash ^= self.zobrist.piece_keys[rook_index][end_sq]
+            self.board[7][3] = rook
             self.board[7][0] = 0
 
         if is_bk_castle:
-            self.board[0][5] = self.board[0][7]
+            rook = self.board[0][7] 
+            rook_index = (abs(rook) - 1) +6  
+            start_sq = 0 * 8 + 7
+            self.hash ^= self.zobrist.piece_keys[rook_index][start_sq]
+            end_sq = 0 * 8 + 5
+            self.hash ^= self.zobrist.piece_keys[rook_index][end_sq]
+            self.board[0][5] = rook
             self.board[0][7] = 0
 
         if is_bq_castle:
-            self.board[0][3] = self.board[0][0]
+            rook = self.board[0][0] 
+            rook_index = (abs(rook) - 1) + 6
+            start_sq = 0 * 8 + 0
+            self.hash ^= self.zobrist.piece_keys[rook_index][start_sq]
+            end_sq = 0 * 8 + 3
+            self.hash ^= self.zobrist.piece_keys[rook_index][end_sq]
+            self.board[0][3] = rook
             self.board[0][0] = 0
 
          # Change side to move

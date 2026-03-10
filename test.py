@@ -1,13 +1,10 @@
 from engine.board import Board
 from engine.move_generator import MoveGenerator
 
-board = Board()
+board =  Board()
+board.load_board("4k3/PP6/8/8/8/8/8/4K3 w KQkq - 0 1")
+generator = MoveGenerator(board)
 
-board.load_board("rnbqkbnr/ppp1p1pp/3p1P2/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 3")
-board.print_board()
+legal_moves  = generator.generate_legal_moves()
 
-moves = MoveGenerator(board)
-
-legal_moves = moves.generate_legal_moves()
 print(legal_moves)
-

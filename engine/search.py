@@ -48,6 +48,13 @@ class Search:
         target_piece = self.board.board[move.end_row][move.end_column]
         moving_piece = self.board.board[move.start_row][move.start_column]
 
+        if move.promotion is not None:
+            if(abs(move.promotion) == 5):
+                return 9500
+            else:
+                return 9000
+    
+
         if target_piece != 0:
             return 10000 + 10 * abs(target_piece) - abs(moving_piece)
         

@@ -10,4 +10,6 @@ class Move:
         self.score = 0
     
     def __repr__(self):
+        if self.promotion:
+            return f"({self.start_row},{self.start_column}) -> ({self.end_row},{self.end_column}) = {self.promotion}"
         return f"({self.start_row},{self.start_column}) -> ({self.end_row},{self.end_column})"

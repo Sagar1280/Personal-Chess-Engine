@@ -11,16 +11,16 @@ const playErrorSound = () => {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
+
     oscillator.frequency.value = 300; // Low beep
     oscillator.type = 'sine';
-    
+
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-    
+
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.1);
   } catch (e) {
@@ -33,16 +33,16 @@ const playSuccessSound = () => {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
+
     oscillator.frequency.value = 800; // High beep
     oscillator.type = 'sine';
-    
+
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-    
+
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.1);
   } catch (e) {
@@ -96,7 +96,7 @@ function App() {
 
   const startGame = async (color) => {
     setPlayerColor(color);
-    
+
     // Reset backend game state
     try {
       const resetResponse = await fetch("http://localhost:5000/api/reset", {
@@ -108,7 +108,7 @@ function App() {
     } catch (error) {
       setMessage(`Reset error: ${error.message}`);
     }
-    
+
     const newGame = new Chess();
     setGame(newGame);
     setFen(newGame.fen());
@@ -165,7 +165,7 @@ function App() {
       setBoardHighlight("");
       setMessage("Game loaded successfully!");
       return true;
-      
+
     } catch (error) {
       setModalMessage(`Connection error: ${error.message}`);
       return false;
@@ -196,14 +196,29 @@ function App() {
     setEngineThinking(false);
   };
 
-  const onDrop = async (sourceSquare, targetSquare) => {
+  const onDrop = async (sourceSquare, targetSquare, piece) => {
     if (gameOver || engineThinking || !game) return false;
 
     const isPlayerTurn = (playerColor === "white" && game.turn() === "w") || (playerColor === "black" && game.turn() === "b");
     if (!isPlayerTurn) return false;
 
+    const movingPiece = game.get(sourceSquare);
+    const targetRank = parseInt(targetSquare[1]);
+    // Pawn reaches back rank: rank 8 for white, rank 1 for black (algebraic)
+    const isPawnAtBackRank = movingPiece?.type === "p" && (targetRank === 8 || targetRank === 1);
+
+    const validPromos = ["q", "r", "b", "n"];
+    const pieceType = piece && piece.length === 2 ? piece[1].toLowerCase() : null;
+    const promoLetter = isPawnAtBackRank && pieceType && validPromos.includes(pieceType) ? pieceType : null;
+
+    // Pawn dropped on back rank but no valid promo piece selected yet (piece is still "wP"/"bP").
+    // Return true so react-chessboard shows the promotion dialog.
+    if (isPawnAtBackRank && !promoLetter) {
+      return true;
+    }
+
     try {
-      const move = game.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
+      const move = game.move({ from: sourceSquare, to: targetSquare, promotion: promoLetter });
       if (move === null) {
         playErrorSound();
         return false;
@@ -213,7 +228,7 @@ function App() {
         const response = await fetch("http://localhost:5000/api/move", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ from: sourceSquare, to: targetSquare }),
+          body: JSON.stringify({ from: sourceSquare, to: targetSquare, promotion: promoLetter }),
         });
 
         if (!response.ok) {
@@ -235,6 +250,7 @@ function App() {
       }
     } catch (e) {
       playErrorSound();
+      console.log(e)
       return false;
     }
   };
@@ -264,7 +280,6 @@ function App() {
   };
 
   const uploadImage = async () => {
-    console.log("UPLOAD FUNCTION TRIGGERED")
 
     if (!uploadedImage) {
       setModalMessage("No image selected")
@@ -347,7 +362,7 @@ function App() {
                 <h2>Load Game</h2>
                 <button className="modal-close" onClick={() => setShowLoadModal(false)}>×</button>
               </div>
-              
+
               <div className="modal-body">
                 <div className="image-upload-section">
                   <label>Upload Board Image</label>
@@ -359,20 +374,20 @@ function App() {
                     )}
                   </div>
                   <input
-                     type="file"
-                     accept="image/*"
-                     onChange={(e) => {
-                     const file = e.target.files[0]
-                     console.log("FILE SELECTED:", file)
-                     setUploadedImage(file)
-                     }}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files[0]
+                      console.log("FILE SELECTED:", file)
+                      setUploadedImage(file)
+                    }}
                   />
                 </div>
 
                 <div className="fen-input-section">
                   <label>FEN String</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="Paste FEN string here"
                     value={fenInput}
                     onChange={(e) => setFenInput(e.target.value)}
@@ -384,8 +399,8 @@ function App() {
                   <div className="modal-message">{modalMessage}</div>
                 )}
 
-                <button 
-                  className="load-btn"  
+                <button
+                  className="load-btn"
                   onClick={async () => {
                     let success;
                     if (uploadedImage) {
@@ -432,6 +447,8 @@ function App() {
                 boardWidth={500}
                 animationDuration={200}
                 boardOrientation={playerColor === "black" ? "black" : "white"}
+                showPromotionDialog={true}
+                autoPromoteToQueen={false}
               />
             )}
           </div>
@@ -453,8 +470,8 @@ function App() {
               </div>
             </div>
 
-            <button 
-              className="undo-btn" 
+            <button
+              className="undo-btn"
               onClick={handleUndo}
               disabled={gameOver || engineThinking}
             >
