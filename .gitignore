@@ -11,6 +11,7 @@ __pycache__/
 # Dataset
 vision/Dataset/
 vision/SquareDataset
+vision/SquareDataset_split
 
 # Environment variables
 .env

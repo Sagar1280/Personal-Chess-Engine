@@ -1,45 +1,16 @@
-
 import numpy as np
+import cv2
+from .predict import predict_fen
 
 
-def image_to_fen(img):
-    #shoudl come up wiht a logic soon
-    return fen
+def detect_board(image_bytes):
 
-def detect_board(img):
-   fen = image_to_fen(img)
-   return fen
+    # convert bytes → numpy image
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-def board_to_fen(board):
-    """
-    Converts board matrix to FEN string
-    """
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) 
 
-    fen = ""
-
-    for row in board:
-        empty = 0
-
-        for piece in row:
-
-            if piece == "":
-                empty += 1
-
-            else:
-                if empty > 0:
-                    fen += str(empty)
-                    empty = 0
-
-                fen += piece
-
-        if empty > 0:
-            fen += str(empty)
-
-        fen += "/"
-
-    fen = fen[:-1]
-
-    # default game state
-    fen += " w KQkq - 0 1"
+    fen = predict_fen(img)
 
     return fen

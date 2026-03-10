@@ -3,6 +3,8 @@ import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 import "./App.css";
 
+
+
 // Simple beep sounds using Web Audio API
 const playErrorSound = () => {
   try {
@@ -69,6 +71,7 @@ function App() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [fenInput, setFenInput] = useState("");
   const [uploadedImage, setUploadedImage] = useState(null);
+  const [modalMessage, setModalMessage] = useState("");
 
   useEffect(() => {
     if (!game) return;
@@ -116,47 +119,56 @@ function App() {
   };
 
   const loadGame = async (fenString) => {
-    if (!fenString.trim()) {
-      setMessage("Please enter a valid FEN string");
-      return;
+    if (!fenString || !fenString.trim()) {
+      setModalMessage("Please enter a valid FEN string");
+      return false;
+    }
+
+    let loadedGame;
+    try {
+      // Validate FEN by creating a Chess instance
+      loadedGame = new Chess(fenString.trim());
+    } catch (error) {
+      setModalMessage(`Invalid FEN string: ${error.message}`);
+      return false;
     }
 
     try {
-      // Validate FEN by creating a Chess instance
-      const loadedGame = new Chess(fenString);
-      
-      if (!loadedGame.fen()) {
-        setMessage("Invalid FEN string");
-        return;
-      }
-
       // Send to backend
       const response = await fetch("http://localhost:5000/api/load_fen", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ fen: fenString }),
+        body: JSON.stringify({ fen: fenString.trim() }),
       });
 
       if (!response.ok) {
-        setMessage("Failed to load game from server");
-        return;
+        const errData = await response.json().catch(() => ({}));
+        setModalMessage(`Server error: ${errData.error || response.statusText}`);
+        return false;
       }
 
       const data = await response.json();
-      
-      // Set the game state with loaded FEN
-      setGame(loadedGame);
-      setFen(fenString);
-      setPlayerColor("white");  // Set default player color
+      const backendFen = data.fen || fenString.trim();
+
+      // Use the backend's canonical FEN so both sides stay in sync.
+      let syncedGame;
+      try { syncedGame = new Chess(backendFen); }
+      catch (_) { syncedGame = loadedGame; }
+
+      setGame(syncedGame);
+      setFen(backendFen);
+      setPlayerColor("white");
       setGameStarted(true);
       setGameOver(false);
       setBoardHighlight("");
       setMessage("Game loaded successfully!");
+      return true;
       
     } catch (error) {
-      setMessage(`Invalid FEN: ${error.message}`);
+      setModalMessage(`Connection error: ${error.message}`);
+      return false;
     }
   };
 
@@ -252,23 +264,47 @@ function App() {
   };
 
   const uploadImage = async () => {
+    console.log("UPLOAD FUNCTION TRIGGERED")
 
-  if (!uploadedImage) return
+    if (!uploadedImage) {
+      setModalMessage("No image selected")
+      return false
+    }
 
-  const fileInput = document.querySelector('input[type="file"]')
+    console.log("Image size:", uploadedImage.size)
 
-  const formData = new FormData()
-  formData.append("image", fileInput.files[0])
+    const formData = new FormData()
+    formData.append("image", uploadedImage)
 
-  const response = await fetch("http://localhost:5000/api/image_to_fen", {
-    method: "POST",
-    body: formData
-  })
+    try {
+      setModalMessage("Analyzing board image...")
+      const response = await fetch("http://localhost:5000/api/image_to_fen", {
+        method: "POST",
+        body: formData
+      })
 
-  const data = await response.json()
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        setModalMessage(`Image upload failed: ${errData.error || response.statusText}`)
+        return false
+      }
 
-  loadGame(data.fen)
-}
+      const data = await response.json()
+      console.log("FEN from image:", data)
+
+      if (!data.fen) {
+        setModalMessage("Could not detect a FEN from the image.")
+        return false
+      }
+
+      setFenInput(data.fen)
+      const success = await loadGame(data.fen)
+      return success
+    } catch (error) {
+      setModalMessage(`Upload error: ${error.message}`)
+      return false
+    }
+  }
 
   const resetGame = () => {
     setGameStarted(false);
@@ -278,6 +314,9 @@ function App() {
     setGameOver(false);
     setBoardHighlight("");
     setMessage("");
+    setModalMessage("");
+    setFenInput("");
+    setUploadedImage(null);
   };
 
   if (!gameStarted) {
@@ -314,21 +353,19 @@ function App() {
                   <label>Upload Board Image</label>
                   <div className="image-upload-area">
                     {uploadedImage ? (
-                      <img src={uploadedImage} alt="Uploaded board" className="uploaded-image" />
+                      <img src={URL.createObjectURL(uploadedImage)} alt="Uploaded board" className="uploaded-image" />
                     ) : (
                       <p>Paste or upload board image here</p>
                     )}
                   </div>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={(e) => {
-                      if (e.target.files[0]) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => setUploadedImage(event.target.result);
-                        reader.readAsDataURL(e.target.files[0]);
-                      }
-                    }}
+                  <input
+                     type="file"
+                     accept="image/*"
+                     onChange={(e) => {
+                     const file = e.target.files[0]
+                     console.log("FILE SELECTED:", file)
+                     setUploadedImage(file)
+                     }}
                   />
                 </div>
 
@@ -343,17 +380,24 @@ function App() {
                   />
                 </div>
 
+                {modalMessage && (
+                  <div className="modal-message">{modalMessage}</div>
+                )}
+
                 <button 
                   className="load-btn"  
-                  onClick={() => {
-                  if(uploadedImage){
-                    uploadImage()
-                  }
-                  else{
-                  loadGame(fenInput)
-                  }
-                  setShowLoadModal(false);
-                }}>
+                  onClick={async () => {
+                    let success;
+                    if (uploadedImage) {
+                      success = await uploadImage();
+                    } else {
+                      success = await loadGame(fenInput);
+                    }
+                    if (success) {
+                      setShowLoadModal(false);
+                      setModalMessage("");
+                    }
+                  }}>
                   Load Game
                 </button>
               </div>

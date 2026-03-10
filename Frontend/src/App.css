@@ -216,6 +216,17 @@ body {
   color: #666;
 }
 
+/* Modal Message (error/info feedback) */
+.modal-message {
+  padding: 10px 14px;
+  background: rgba(255, 60, 60, 0.15);
+  border: 1px solid rgba(255, 60, 60, 0.4);
+  border-radius: 6px;
+  color: #ff6b6b;
+  font-size: 14px;
+  text-align: center;
+}
+
 /* Load Button */
 .load-btn {
   padding: 12px;

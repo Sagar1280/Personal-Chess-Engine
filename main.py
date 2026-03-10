@@ -10,8 +10,11 @@ from engine.move import Move
 from vision.image_to_fen import detect_board
 import os
 
-app = Flask(__name__, static_folder="frontend/build", static_url_path="/")
+app = Flask(__name__, static_folder="Frontend/build", static_url_path="/")
 CORS(app)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 
+print("MAX SIZE:", app.config['MAX_CONTENT_LENGTH'])
+
 
 board = Board()
 board.set_up_initial_position()
@@ -23,40 +26,10 @@ move_history = []  # Track all moves for undo
 start_position_fen = None  # Track the starting FEN (for replaying after undo)
 
 def get_fen():
-    """Convert board state to FEN notation"""
-    piece_map = {
-        1: 'P', -1: 'p',
-        2: 'N', -2: 'n',
-        3: 'B', -3: 'b',
-        4: 'R', -4: 'r',
-        5: 'Q', -5: 'q',
-        6: 'K', -6: 'k'
-    }
-    
-    fen_parts = []
-    for row in board.board:
-        fen_row = ""
-        empty_count = 0
-        for piece in row:
-            if piece == 0:
-                empty_count += 1
-            else:
-                if empty_count > 0:
-                    fen_row += str(empty_count)
-                    empty_count = 0
-                fen_row += piece_map.get(piece, '?')
-        if empty_count > 0:
-            fen_row += str(empty_count)
-        fen_parts.append(fen_row)
-    
-    piece_placement = '/'.join(fen_parts)
-    active_color = 'w' if board.side_to_move == 1 else 'b'
-    castling = "-"
-    en_passant = "-"
-    halfmove = 0
-    fullmove = board.move_number
-    
-    return f"{piece_placement} {active_color} {castling} {en_passant} {halfmove} {fullmove}"
+    """Delegate to the Board's own FEN serializer, which correctly
+    includes castling rights, en-passant, and move counters."""
+    return board.get_fenn()
+
 
 def get_game_status():
     # You may need to adjust these based on your engine's API
@@ -100,6 +73,9 @@ def api_move():
     source = data.get("from")
     target = data.get("to")
     move_str = source + target
+    # Always recreate generator from the current board state
+    # (mirrors what api_engine_move already does)
+    generator = MoveGenerator(board)
     legal_moves = generator.generate_legal_moves()
 
     def algebraic_to_index(square):
@@ -128,72 +104,20 @@ def api_move():
     })
 
 def load_board_from_fen(fen_string):
-    """Load board position from FEN string"""
+    """Load board position from FEN string using board.load_board()"""
     global board, generator, search, move_history
-    
+
     try:
-        parts = fen_string.split()
-        if len(parts) < 4:
-            raise ValueError("Invalid FEN format")
-        
-        piece_placement = parts[0]
-        active_color = parts[1]
-        castling = parts[2] if len(parts) > 2 else "-"
-        en_passant = parts[3] if len(parts) > 3 else "-"
-        halfmove = int(parts[4]) if len(parts) > 4 else 0
-        fullmove = int(parts[5]) if len(parts) > 5 else 1
-        
-        # Create new board
+        # Use the Board class's own load_board method which correctly
+        # handles all FEN fields (including en passant as a (row,col) tuple)
         board = Board()
-        
-        # Clear the board first
-        for i in range(8):
-            for j in range(8):
-                board.board[i][j] = 0
-        
-        # Parse piece placement
-        piece_chars = {
-            'P': 1, 'p': -1,
-            'N': 2, 'n': -2,
-            'B': 3, 'b': -3,
-            'R': 4, 'r': -4,
-            'Q': 5, 'q': -5,
-            'K': 6, 'k': -6
-        }
-        
-        rows = piece_placement.split('/')
-        for row_idx, row_str in enumerate(rows):
-            col_idx = 0
-            for char in row_str:
-                if char.isdigit():
-                    col_idx += int(char)
-                elif char in piece_chars:
-                    board.board[row_idx][col_idx] = piece_chars[char]
-                    col_idx += 1
-        
-        # Set side to move
-        board.side_to_move = 1 if active_color == 'w' else -1
-        
-        # Set castling rights
-        board.castling_rights = {
-            'white_kingside': 'K' in castling,
-            'white_queenside': 'Q' in castling,
-            'black_kingside': 'k' in castling,
-            'black_queenside': 'q' in castling
-        }
-        
-        # Set en passant
-        board.en_passant = en_passant if en_passant != '-' else None
-        
-        # Set move counters
-        board.halfmove_clock = halfmove
-        board.move_number = fullmove
-        
-        # Recreate generator and search
+        board.load_board(fen_string)
+
+        # Recreate generator and search against the freshly-loaded board
         generator = MoveGenerator(board)
         search = Search(board, generator, Evaluator())
         move_history = []
-        
+
         return True
     except Exception as e:
         raise ValueError(f"Failed to parse FEN: {str(e)}")
@@ -230,6 +154,11 @@ def api_engine_move():
     # Recreate generator with current board state
     generator = MoveGenerator(board)
     move, eval_score = search.find_best_move(depth_param)
+
+    if move is None:
+        status = get_game_status()
+        return jsonify({"error": f"No legal moves ({status})", "fen": get_fen(), "status": status}), 200
+
     board.make_move(move)
     move_history.append(move)  # Record engine move in history
     
@@ -254,58 +183,9 @@ def api_undo():
     
     # Recreate board from start position without resetting move_history
     if start_position_fen:
-        # Parse and load the starting FEN directly into board
         try:
-            parts = start_position_fen.split()
-            piece_placement = parts[0]
-            active_color = parts[1]
-            castling = parts[2] if len(parts) > 2 else "-"
-            en_passant = parts[3] if len(parts) > 3 else "-"
-            halfmove = int(parts[4]) if len(parts) > 4 else 0
-            fullmove = int(parts[5]) if len(parts) > 5 else 1
-            
-            # Clear the board
-            for i in range(8):
-                for j in range(8):
-                    board.board[i][j] = 0
-            
-            # Parse piece placement
-            piece_chars = {
-                'P': 1, 'p': -1,
-                'N': 2, 'n': -2,
-                'B': 3, 'b': -3,
-                'R': 4, 'r': -4,
-                'Q': 5, 'q': -5,
-                'K': 6, 'k': -6
-            }
-            
-            rows = piece_placement.split('/')
-            for row_idx, row_str in enumerate(rows):
-                col_idx = 0
-                for char in row_str:
-                    if char.isdigit():
-                        col_idx += int(char)
-                    elif char in piece_chars:
-                        board.board[row_idx][col_idx] = piece_chars[char]
-                        col_idx += 1
-            
-            # Set side to move
-            board.side_to_move = 1 if active_color == 'w' else -1
-            
-            # Set castling rights
-            board.castling_rights = {
-                'white_kingside': 'K' in castling,
-                'white_queenside': 'Q' in castling,
-                'black_kingside': 'k' in castling,
-                'black_queenside': 'q' in castling
-            }
-            
-            # Set en passant
-            board.en_passant = en_passant if en_passant != '-' else None
-            
-            # Set move counters
-            board.halfmove_clock = halfmove
-            board.move_number = fullmove
+            board = Board()
+            board.load_board(start_position_fen)
         except:
             # Fallback to initial position
             board = Board()
@@ -331,8 +211,18 @@ def api_undo():
 @app.route("/api/image_to_fen" , methods = ["POST"])
 def image_to_fen():
 
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+
     image = request.files["image"]
-    fen = detect_board(image)
+
+    if image.filename == "":
+        return jsonify({"error": "Empty file"}), 400
+
+    image_bytes = image.read()
+
+    fen = detect_board(image_bytes)
+
     return jsonify({"fen": fen})
 
 # Serve React frontend

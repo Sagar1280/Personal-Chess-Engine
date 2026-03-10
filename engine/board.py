@@ -55,48 +55,60 @@ class Board:
         print(f"side to move: {'White' if self.side_to_move == 1 else 'Black'}")
 
     def load_board(self, fen):
+        parts = fen.strip().split()
+        if len(parts) < 2:
+            raise ValueError("Invalid FEN: need at least piece placement and side to move")
 
-        parts = fen.split()
-        
+        # Always clear the board first
+        for i in range(8):
+            for j in range(8):
+                self.board[i][j] = 0
+
+        piece_map = {
+            "P": 1, "N": 2, "B": 3, "R": 4, "Q": 5, "K": 6,
+            "p": -1, "n": -2, "b": -3, "r": -4, "q": -5, "k": -6
+        }
+
         rows = parts[0].split("/")
         for r in range(8):
             file = 0
             for char in rows[r]:
-               if char.isdigit():
-                   file += int(char)
-               else:
-                piece_map = {
-                    "P": 1, "N": 2, "B": 3, "R": 4, "Q": 5, "K": 6,
-                    "p": -1, "n": -2, "b": -3, "r": -4, "q": -5, "k": -6
-                }
-                self.board[r][file] = piece_map[char]
-                file += 1
+                if char.isdigit():
+                    file += int(char)
+                elif char in piece_map:
+                    self.board[r][file] = piece_map[char]
+                    file += 1
 
         self.side_to_move = 1 if parts[1] == 'w' else -1
 
+        castling = parts[2] if len(parts) > 2 else "-"
         self.castling_rights = {
-            'white_kingside' : 'K' in parts[2], 
-            'white_queenside' : 'Q' in parts[2],   
-            'black_kingside' : 'k' in parts[2],
-            'black_queenside' : 'q' in parts[2]
+            'white_kingside':  'K' in castling,
+            'white_queenside': 'Q' in castling,
+            'black_kingside':  'k' in castling,
+            'black_queenside': 'q' in castling,
         }
 
-        if parts[3] != "-":
-            file = ord(parts[3][0]) - ord('a')
-            rank = 8 - int(parts[3][1])
-            self.en_passant = (rank, file)
+        ep = parts[3] if len(parts) > 3 else "-"
+        if ep != "-":
+            self.en_passant = (8 - int(ep[1]), ord(ep[0]) - ord('a'))
         else:
             self.en_passant = None
 
-        self.halfmove_clock = int(parts[4])
-
-        self.move = int(parts[5])
+        self.halfmove_clock = int(parts[4]) if len(parts) > 4 else 0
+        self.move_number    = int(parts[5]) if len(parts) > 5 else 1
         self.hash = self.compute_hash()
 
     def make_move(self, move):  
       # Store move info for undo
         piece = self.board[move.start_row][move.start_column]
         captured_piece = self.board[move.end_row][move.end_column]
+
+        # Detect castling NOW, before castling_rights are modified below
+        is_wk_castle = (piece == 6  and move.start_row == 7 and move.start_column == 4 and move.end_row == 7 and move.end_column == 6 and self.castling_rights.get('white_kingside',  False))
+        is_wq_castle = (piece == 6  and move.start_row == 7 and move.start_column == 4 and move.end_row == 7 and move.end_column == 2 and self.castling_rights.get('white_queenside', False))
+        is_bk_castle = (piece == -6 and move.start_row == 0 and move.start_column == 4 and move.end_row == 0 and move.end_column == 6 and self.castling_rights.get('black_kingside',  False))
+        is_bq_castle = (piece == -6 and move.start_row == 0 and move.start_column == 4 and move.end_row == 0 and move.end_column == 2 and self.castling_rights.get('black_queenside', False))
 
         self.move_history.append((
             move, piece, captured_piece,
@@ -167,20 +179,20 @@ class Board:
             if move.end_row == 0 and move.end_column == 7:
                 self.remove_castling_right("black_kingside")
 
-        # CASTLING MOVE → move rook
-        if self.board[move.end_row][move.end_column] == 6 and move.start_row == 7  and move.start_column == 4 and move.end_row == 7 and move.end_column == 6:
+        # CASTLING MOVE → move rook (use pre-computed flags from top of function)
+        if is_wk_castle:
             self.board[7][5] = self.board[7][7]
             self.board[7][7] = 0
 
-        if self.board[move.end_row][move.end_column] == 6 and move.start_row == 7 and move.start_column == 4 and move.end_row == 7 and move.end_column == 2:
+        if is_wq_castle:
             self.board[7][3] = self.board[7][0]
             self.board[7][0] = 0
 
-        if self.board[move.end_row][move.end_column] == -6 and move.start_row == 0 and move.start_column == 4 and move.end_row == 0 and move.end_column == 6:
+        if is_bk_castle:
             self.board[0][5] = self.board[0][7]
             self.board[0][7] = 0
 
-        if self.board[move.end_row][move.end_column] == -6 and  move.start_row == 0 and move.start_column == 4 and move.end_row == 0 and move.end_column == 2:
+        if is_bq_castle:
             self.board[0][3] = self.board[0][0]
             self.board[0][0] = 0
 
